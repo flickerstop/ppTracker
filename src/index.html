@@ -1,0 +1,296 @@
+<!----------------------------------------------------------
+> CSS
+<----------------------------------------------------------->
+<style>
+    body{
+        background-color: rgb(29, 29, 29);
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+    #imagePanel{
+        position: relative;
+        width: 450px;
+        height: 450px;
+        border: 1px solid white;
+        float: left;
+    }
+    .doorButton{
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: #e74c3c;
+        border: 1px solid white;
+        cursor: pointer;
+    }
+    .doorButton:hover{
+        background: #ecf0f1;
+    }
+
+    #roomName, #currentRun{
+        color: white;
+        text-align: center;
+    }
+</style>
+
+<!----------------------------------------------------------
+> HTML
+<----------------------------------------------------------->
+<!-- #region -->
+<html>
+    <head>
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+    </head>
+    <body id="body">
+        <div id="imagePanel"></div>
+        <h1 id="roomName"></h1>
+        <div id="currentRun"></div>
+    </body>
+</html>
+<!-- #endregion -->
+
+<!----------------------------------------------------------
+> JAVASCRIPT
+<----------------------------------------------------------->
+
+<script>
+    let currentRoom = 0;
+    let maxRoom = 4;
+    let currentRun = [];
+    let pastRuns = [];
+
+    let roomData = [
+        // ROOM 1
+        [
+            {
+                x:143,
+                y:202
+            },
+            {
+                x:270,
+                y:203
+            },
+            {
+                x:141,
+                y:292
+            },
+            {
+                x:270,
+                y:292
+            },
+        ],
+        // ROOM 2
+        [
+            {
+                x:278,
+                y:205
+            },
+            {
+                x:315,
+                y:258
+            },
+            {
+                x:296,
+                y:311
+            },
+            {
+                x:154,
+                y:312
+            },
+        ],
+        // ROOM 3
+        [
+            {
+                x:137,
+                y:265
+            },
+            {
+                x:210,
+                y:375
+            },
+            {
+                x:246,
+                y:375
+            },
+            {
+                x:302,
+                y:302
+            },
+        ],
+        // ROOM 4
+        [
+            {
+                x:226,
+                y:280
+            },
+            {
+                x:299,
+                y:299
+            },
+            {
+                x:354,
+                y:171
+            },
+            {
+                x:299,
+                y:135
+            },
+        ],
+        // ROOM 5
+        [
+            {
+                x:256,
+                y:228
+            },
+            {
+                x:192,
+                y:276
+            },
+            {
+                x:144,
+                y:275
+            },
+            {
+                x:128,
+                y:244
+            },
+        ],
+    ]
+
+    $(function() {
+        load();
+        nextRoom();
+    });
+    function openDoor(id){
+        currentRun.push(id);
+        let runString = "";
+
+        let i = 1;
+        for(let room of currentRun){
+            runString += `Room #${i}: door #${room}<br>`;
+            i++;
+        }
+
+        d3.select("#currentRun").html(runString);
+        nextRoom();
+    }
+
+    function nextRoom(){
+        // If now on the last room
+        if(currentRoom >= maxRoom){
+            save();
+            currentRoom = 0;
+            nextRoom();
+            currentRun = [];
+            d3.select("#currentRun").html(null);
+            return;
+        }
+        // Increase the room count
+        currentRoom++;
+        // Draw the room
+        drawRoom();
+        calculateOdds();
+
+        function drawRoom(){
+            // Draw the image
+            let panel = d3.select("#imagePanel").attr("style",'background-image:url("./images/'+currentRoom+'.png")').html(null);
+            // write the name
+            d3.select("#roomName").html("Room #"+currentRoom);
+            // Loop through and create the rooms
+            let doorNum = 1;
+            for(let door of roomData[currentRoom-1]){
+                panel.append("div").attr("class","doorButton")
+                    .style("top",door.y)
+                    .style("left",door.x)
+                    .attr("id","door-"+doorNum)
+                    .on("click",test(doorNum));
+                doorNum++;
+            }
+
+            function test(i){
+                return function(){
+                    openDoor(i);
+                }
+            }
+        }
+    }
+
+    function save(){
+        pastRuns.push(currentRun);
+
+        if (typeof (Storage) !== "undefined") {
+            localStorage.setItem("save", JSON.stringify(pastRuns));
+            console.log("saved");
+        } else {
+            window.alert("Web Storage is not supported!");
+        }
+        // $.post("/save", currentRun,function(returnData) {
+        //     currentRoom = 0;
+        //     nextRoom();
+        // });
+    }
+
+    function load() {
+        // If you can use web storage
+        if (typeof (Storage) !== "undefined") {
+            // get the save file from web storage
+            var loadFile = JSON.parse(localStorage.getItem("save"));
+            // if there is a save file
+            if (loadFile != null) {
+                pastRuns = loadFile;
+                console.log('loaded');
+            } else {
+                console.log("no save file");
+            }
+        } else {
+            window.alert("Web Storage is not supported!");
+        }
+    }
+
+    function calculateOdds(){
+        // If room 1, just STAHP
+        if(currentRoom == 1){
+            return;
+        }   
+        let filteredRuns = pastRuns;
+        // Filter all the runs that have equaled the current run
+        for(let i = 0; i < currentRun.length;i++){
+            filteredRuns = filteredRuns.filter(x=>currentRun[i]==x[i])
+        }
+        let doorsOpenedInCurrentRoom = [];
+        for(let run of filteredRuns){
+            doorsOpenedInCurrentRoom.push(run[currentRoom-1]);
+        }
+
+        let odds = [];
+        for(let i = 1; i <= 4;i++){
+            odds.push({
+                    door:i,
+                    odds:doorsOpenedInCurrentRoom.filter(x=>x==i).length/doorsOpenedInCurrentRoom.length
+                });
+        }
+        odds.sort(sortOdds);
+
+        
+        // 1st
+        d3.select("#door-"+odds[0].door).style("background-color","#2ecc71");
+        // 2nd
+        d3.select("#door-"+odds[1].door).style("background-color","#f1c40f");
+        // 3rd
+        d3.select("#door-"+odds[2].door).style("background-color","#e67e22");
+        // 4th
+        d3.select("#door-"+odds[3].door).style("background-color","#e74c3c");
+
+
+
+        function sortOdds(a,b) {
+            if (a.odds > b.odds)
+                return -1;
+            if (a.odds < b.odds)
+                return 1;
+            return 0;
+        }
+    }
+
+</script>

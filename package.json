@@ -1,0 +1,15 @@
+{
+  "name": "pptracker",
+  "version": "0.1.0",
+  "description": "tracks runs through pp",
+  "main": "app.js",
+  "scripts": {
+    "start": "node src/app"
+  },
+  "author": "flickerstop",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.4",
+    "fs-extra": "^7.0.1"
+  }
+}
